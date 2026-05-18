@@ -89,7 +89,7 @@ const normalizeInstituteLogo = (rawLogo: any) => {
   if (typeof logo === 'object' && logo?.type === 'Buffer' && Array.isArray(logo?.data)) {
     try {
       const bytes = new Uint8Array(logo.data);
-      const bufferCtor = (global as any).Buffer;
+      const bufferCtor = (globalThis as any).Buffer;
       const bufferBase64 = bufferCtor ? bufferCtor.from(bytes).toString('base64') : '';
       return bufferBase64 ? `data:image/png;base64,${bufferBase64}` : '';
     } catch {
@@ -277,6 +277,7 @@ const ParentDashboard = () => {
   const [children, setChildren] = useState<ParentChild[]>([]);
   const [childrenLoading, setChildrenLoading] = useState(false);
   const [studentData, setStudentData] = useState<Record<string, any> | null>(null);
+  const [teacherProfileCache, setTeacherProfileCache] = useState<Record<string, any> | null>(null);
   const [loginName, setLoginName] = useState('Parent');
   const [schoolLogo, setSchoolLogo] = useState<string>('');
   const [academicSummary, setAcademicSummary] = useState({ grade: '-', percentage: '0.00' });
@@ -287,6 +288,18 @@ const ParentDashboard = () => {
   const phoneWidth = Math.min(Math.max(width - 24, 320), 390);
   const phoneHeight = Math.min(Math.max(height - 24, 720), 860);
   const styles = createAppStyles({ phoneWidth, phoneHeight });
+  const normalizeText = (value: any) =>
+    String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const normalizePhone = (value: any) => String(value ?? '').replace(/\D/g, '');
+
+  const cacheTeacherProfile = async (profile: Record<string, any> | null) => {
+    if (!profile) return;
+    try {
+      await AsyncStorage.setItem('teacherProfile', JSON.stringify(profile));
+    } catch (error) {
+      console.error('Failed to cache teacher profile:', error);
+    }
+  };
 
   const loadStudentData = async () => {
     try {
@@ -347,6 +360,7 @@ const ParentDashboard = () => {
 
       if (response.ok && json?.success && json?.student) {
         setStudentProfile(json.student);
+        await AsyncStorage.setItem('parentProfile', JSON.stringify(json.student));
         return json.student;
       }
 
@@ -356,6 +370,7 @@ const ParentDashboard = () => {
         name: (await AsyncStorage.getItem('name')) || 'Parent',
       };
       setStudentProfile(fallbackProfile);
+      await AsyncStorage.setItem('parentProfile', JSON.stringify(fallbackProfile));
       return fallbackProfile;
     } catch (error) {
       console.error('Failed to load parent profile:', error);
@@ -494,6 +509,26 @@ const ParentDashboard = () => {
 
     await Promise.all([loadChildren(activeStudent), loadSummaries(profile, data)]);
   };
+
+  useEffect(() => {
+    const loadTeacherProfileCache = async () => {
+      try {
+        const cachedTeacherProfileRaw = await AsyncStorage.getItem('teacherProfile');
+        if (!cachedTeacherProfileRaw) {
+          setTeacherProfileCache(null);
+          return;
+        }
+
+        const cachedTeacherProfile = JSON.parse(cachedTeacherProfileRaw);
+        setTeacherProfileCache(cachedTeacherProfile);
+      } catch (error) {
+        console.error('Failed to load cached teacher profile:', error);
+        setTeacherProfileCache(null);
+      }
+    };
+
+    void loadTeacherProfileCache();
+  }, [showProfileModal]);
 
   useEffect(() => {
     const loadSchoolLogo = async () => {
@@ -687,10 +722,83 @@ const ParentDashboard = () => {
       await AsyncStorage.setItem('currentStudent', JSON.stringify(child));
 
       setShowProfileModal(false);
-      await refreshParentAccount();
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'ParentDashboard' as never,
+            params: {
+              username: safeUsername,
+              name: child.name || '',
+            } as never,
+          },
+        ],
+      });
     } catch (error) {
       console.error('Failed to switch child:', error);
       Alert.alert('Error', 'Failed to switch to this student.');
+    }
+  };
+
+  const canSwitchToTeacherAccount = useMemo(() => {
+    const currentName = normalizeText(studentProfile?.father_name || studentData?.father_name);
+    const currentPhone = normalizePhone(
+      studentProfile?.phone_no || studentData?.phone_no || studentData?.mobile || ''
+    );
+    const teacherName = normalizeText(teacherProfileCache?.name);
+    const teacherPhone = normalizePhone(
+      teacherProfileCache?.phoneNo ||
+        teacherProfileCache?.phone_no ||
+        teacherProfileCache?.mobile_number ||
+        ''
+    );
+
+    return Boolean(
+      teacherProfileCache &&
+        normalizeText(teacherProfileCache?.userType) === 'teacher' &&
+        currentName &&
+        currentPhone &&
+        currentName === teacherName &&
+        currentPhone === teacherPhone
+    );
+  }, [studentData?.father_name, studentData?.phone_no, studentData?.mobile, studentProfile, teacherProfileCache]);
+
+  const handleSwitchToTeacherAccount = async () => {
+    try {
+      if (!teacherProfileCache) {
+        Alert.alert('Unavailable', 'Teacher account details were not found on this device.');
+        return;
+      }
+
+      const username = String(teacherProfileCache.username || '');
+      const schoolCode = String(teacherProfileCache.schoolCode || '');
+      const name = String(teacherProfileCache.name || '');
+      const designation = String(teacherProfileCache.designation || '');
+
+      await AsyncStorage.multiSet([
+        ['username', username],
+        ['name', name],
+        ['schoolCode', schoolCode],
+        ['designation', designation],
+        ['userType', 'teacher'],
+        ['userDetails', JSON.stringify(teacherProfileCache)],
+        ['lastScreen', 'TeacherAdmissionDashboard'],
+      ]);
+      await cacheTeacherProfile(teacherProfileCache);
+
+      setShowProfileModal(false);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'TeacherAdmissionDashboard' as never,
+            params: { username, name },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('Failed to switch to teacher account:', error);
+      Alert.alert('Error', 'Failed to switch to teacher account.');
     }
   };
 
@@ -882,57 +990,92 @@ const ParentDashboard = () => {
                   </View>
                 ))}
               </ScrollView>
-              <View style={styles.statusCardsRow}>
-                <View
-                  style={[
-                    styles.statusCard,
-                    styles.statusCardLeft,
-                    { backgroundColor: '#D7E8C9' },
-                  ]}
-                  onLayout={(event) => {
-                    sectionPositions.current.ParentAcademic = event.nativeEvent.layout.y;
-                  }}
-                >
-                    <View style={styles.statusCardText}>
+              <ScrollView
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: Math.max(phoneHeight * 0.24, 180) }}
+                contentContainerStyle={{ paddingBottom: 24 }}
+              >
+                <View style={styles.statusCardsRow}>
+                  <View
+                    style={[
+                      styles.statusCard,
+                      styles.statusCardLeft,
+                      { backgroundColor: '#D7E8C9' },
+                    ]}
+                    onLayout={(event) => {
+                      sectionPositions.current.ParentAcademic = event.nativeEvent.layout.y;
+                    }}
+                  >
+                    <ScrollView
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                      style={styles.statusCardTextScroll}
+                      contentContainerStyle={styles.statusCardTextScrollContent}
+                    >
                       <View style={styles.statusTitleRow}>
-                        <Text style={styles.statusNumber}>Academic</Text>
-                        <Text style={styles.statusSubtitle}>{academicSummary.grade}</Text>
+                        <Text style={styles.statusNumber} numberOfLines={1} ellipsizeMode="tail">
+                          Academic
+                        </Text>
+                        <Text style={styles.statusSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                          {academicSummary.grade}
+                        </Text>
                       </View>
-                      <Text style={styles.statusFooter}>{academicSummary.percentage}%</Text>
-                    <Pressable onPress={() => openModule('ParentAcademic')} style={styles.statusActionButton}>
-                      <Text style={styles.statusActionLink}>Open Academic</Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.statusIconWrap}>
-                    <MaterialIcons name="school" size={30} color="#4C4C4C" />
-                  </View>
-                </View>
-
-                <View
-                  style={[
-                    styles.statusCard,
-                    styles.statusCardRight,
-                    { backgroundColor: '#F2EE9E' },
-                  ]}
-                  onLayout={(event) => {
-                    sectionPositions.current.ParentFees = event.nativeEvent.layout.y;
-                  }}
-                >
-                  <View style={styles.statusCardText}>
-                    <View style={styles.statusTitleRow}>
-                      <Text style={styles.statusNumber}>Fees</Text>
-                      <Text style={styles.statusSubtitle}>Summary</Text>
+                      <Text style={styles.statusFooter} numberOfLines={1} ellipsizeMode="tail">
+                        {academicSummary.percentage}%
+                      </Text>
+                      <Pressable
+                        onPress={() => openModule('ParentAcademic')}
+                        style={styles.statusActionButton}
+                      >
+                        <Text style={styles.statusActionLink}>Open Academic</Text>
+                      </Pressable>
+                    </ScrollView>
+                    <View style={styles.statusIconWrap}>
+                      <MaterialIcons name="school" size={30} color="#4C4C4C" />
                     </View>
-                    <Text style={styles.statusFooter}>{feeSummary.due}</Text>
-                    <Pressable onPress={() => openModule('ParentFees')} style={styles.statusActionButton}>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.statusCard,
+                      styles.statusCardRight,
+                      { backgroundColor: '#F2EE9E' },
+                    ]}
+                    onLayout={(event) => {
+                      sectionPositions.current.ParentFees = event.nativeEvent.layout.y;
+                    }}
+                  >
+                  <ScrollView
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                    style={styles.statusCardTextScroll}
+                    contentContainerStyle={styles.statusCardTextScrollContent}
+                  >
+                    <View style={styles.statusTitleRow}>
+                      <Text style={styles.statusNumber} numberOfLines={1} ellipsizeMode="tail">
+                        Fees
+                      </Text>
+                      <Text style={styles.statusSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                        Summary
+                      </Text>
+                    </View>
+                    <Text style={styles.statusFooter} numberOfLines={1} ellipsizeMode="tail">
+                      {feeSummary.due}
+                    </Text>
+                    <Pressable
+                      onPress={() => openModule('ParentFees')}
+                      style={styles.statusActionButton}
+                    >
                       <Text style={styles.statusActionLink}>Open Fees</Text>
                     </Pressable>
-                  </View>
+                  </ScrollView>
                   <View style={styles.statusIconWrap}>
                     <MaterialIcons name="payments" size={30} color="#4C4C4C" />
                   </View>
+                  </View>
                 </View>
-              </View>
+              </ScrollView>
 
 
               <View
@@ -1214,6 +1357,26 @@ const ParentDashboard = () => {
                       </Text>
                     )}
                   </View>
+
+                  {canSwitchToTeacherAccount && (
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={styles.teacherTitle}>Switch Account</Text>
+                      <Text style={styles.teacherSubtitle}>
+                        A matching teacher account was found on this device.
+                      </Text>
+                      <Pressable
+                        style={[
+                          styles.popupButton,
+                          styles.popupButtonPrimary,
+                          styles.teacherActionButton,
+                          { marginTop: 12 },
+                        ]}
+                        onPress={handleSwitchToTeacherAccount}
+                      >
+                        <Text style={styles.popupButtonText}>Switch to Teacher Account</Text>
+                      </Pressable>
+                    </View>
+                  )}
 
                   <View style={styles.teacherActions}>
                     <Pressable

@@ -442,10 +442,16 @@ const TeacherSalary: React.FC<
               >
                 <View style={local.summaryCardText}>
                   <View style={local.summaryCardTitleRow}>
-                    <Text style={local.summaryCardNumber}>{card.title}</Text>
-                    <Text style={local.summaryCardSubtitle}>{card.subtitle}</Text>
+                    <Text style={local.summaryCardNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={local.summaryCardSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
                   </View>
-                  <Text style={local.summaryCardFooter}>{card.footer}</Text>
+                  <Text style={local.summaryCardFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
                 </View>
                 <View style={local.summaryCardIconWrap}>
                   <Ionicons name={card.icon as any} size={28} color="#4C4C4C" />
@@ -630,13 +636,14 @@ const local = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    minHeight: 108,
+    height: 108,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,

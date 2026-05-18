@@ -52,6 +52,22 @@ const TeacherEventMediaUpload: React.FC<
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const uploadStatusText = isUploading ? uploadProgress || 'Uploading...' : uploadProgress || 'Ready';
+  const summaryCards = [
+    {
+      title: `${eventMedia.length}`,
+      subtitle: 'Selected photos',
+      footer: uploadStatusText,
+      icon: 'images-outline',
+      background: '#D7E7CD',
+    },
+    {
+      title: isUploading ? 'Uploading' : 'Ready',
+      subtitle: 'Upload status',
+      footer: nameOfEvent.trim() || 'Event details',
+      icon: 'cloud-upload-outline',
+      background: '#F0EE96',
+    },
+  ];
 
   useEffect(() => {
     if (name) setUploaderName(name);
@@ -150,7 +166,35 @@ const TeacherEventMediaUpload: React.FC<
 
       <ScrollView style={styles.scrollView} contentContainerStyle={ui.page} showsVerticalScrollIndicator={false}>
         <View style={local.container}>
-       
+          <View style={local.summaryRow}>
+            {summaryCards.map((card, index) => (
+              <View
+                key={`${card.subtitle}-${index}`}
+                style={[
+                  local.summaryCard,
+                  index === 0 ? local.summaryCardLeft : local.summaryCardRight,
+                  { backgroundColor: card.background },
+                ]}
+              >
+                <View style={local.summaryText}>
+                  <View style={local.summaryTitleRow}>
+                    <Text style={local.summaryNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={local.summarySubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                  <Text style={local.summaryFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
+                </View>
+                <View style={local.summaryIconWrap}>
+                  <Ionicons name={card.icon as any} size={28} color="#4C4C4C" />
+                </View>
+              </View>
+            ))}
+          </View>
 
           <View style={ui.card}>
             <Text style={ui.cardLabel}>Upload Actions</Text>
@@ -272,7 +316,59 @@ const local = StyleSheet.create({
     paddingBottom: 8,
   },
   summaryCard: {
-    width: '48%',
+    flex: 1,
+    height: 108,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  summaryCardLeft: {
+    marginRight: 4,
+  },
+  summaryCardRight: {
+    marginLeft: 4,
+  },
+  summaryText: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  summaryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  summaryNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginRight: 4,
+  },
+  summarySubtitle: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#252525',
+    lineHeight: 18,
+  },
+  summaryFooter: {
+    marginTop: 20,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#2B2B2B',
+  },
+  summaryIconWrap: {
+    width: 34,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingTop: 2,
   },
   mediaCard: {
     marginHorizontal: 12,

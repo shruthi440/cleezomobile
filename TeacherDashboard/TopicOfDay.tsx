@@ -35,6 +35,68 @@ const localStyles = StyleSheet.create({
   pickerText: {
     color: '#111827',
   },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    paddingBottom: 8,
+  },
+  summaryCard: {
+    flex: 1,
+    height: 108,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  summaryCardLeft: {
+    marginRight: 4,
+  },
+  summaryCardRight: {
+    marginLeft: 4,
+  },
+  summaryText: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  summaryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  summaryNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginRight: 4,
+  },
+  summarySubtitle: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#252525',
+    lineHeight: 18,
+  },
+  summaryFooter: {
+    marginTop: 20,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#2B2B2B',
+  },
+  summaryIconWrap: {
+    width: 34,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingTop: 2,
+  },
 });
 /* ---------------- TYPES ---------------- */
 
@@ -207,6 +269,22 @@ const gradeMap: Record<string, string> = {
 };
   const { nextClass, fullTimetable, refreshNextClass } = useNextClass();
 const normalizedGrade = gradeMap[selectedClass] || selectedClass;
+const summaryCards = [
+  {
+    title: topics.length ? `${topics.length}` : '0',
+    subtitle: 'Topics',
+    footer: selectedTopic || 'Choose a topic',
+    icon: 'book-outline',
+    background: '#D7E7CD',
+  },
+  {
+    title: selectedLesson || 'Lesson',
+    subtitle: selectedSubject || 'Subject',
+    footer: selectedClass ? `Class ${selectedClass}` : 'Select class first',
+    icon: 'school-outline',
+    background: '#F0EE96',
+  },
+];
 
 const fetchTopics = async () => {
   console.log('🚀 fetchTopics triggered');
@@ -332,6 +410,35 @@ const saveTopicOfDay = async (topicName: string) => {
 
       <ScrollView style={styles.scrollView}>
         <View style={styles.container}>
+          <View style={localStyles.summaryRow}>
+            {summaryCards.map((card, index) => (
+              <View
+                key={`${card.subtitle}-${index}`}
+                style={[
+                  localStyles.summaryCard,
+                  index === 0 ? localStyles.summaryCardLeft : localStyles.summaryCardRight,
+                  { backgroundColor: card.background },
+                ]}
+              >
+                <View style={localStyles.summaryText}>
+                  <View style={localStyles.summaryTitleRow}>
+                    <Text style={localStyles.summaryNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={localStyles.summarySubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                  <Text style={localStyles.summaryFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
+                </View>
+                <View style={localStyles.summaryIconWrap}>
+                  <Ionicons name={card.icon as any} size={28} color="#4C4C4C" />
+                </View>
+              </View>
+            ))}
+          </View>
 
      
 

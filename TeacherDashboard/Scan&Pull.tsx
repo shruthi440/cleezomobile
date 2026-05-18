@@ -93,6 +93,22 @@ const HandwritingScanPull: React.FC = () => {
     grade: '',
   });
   const [rows, setRows] = useState<PulledRow[]>([]);
+  const summaryCards = [
+    {
+      title: activeTab === 'scan' ? 'Scan' : 'Pull',
+      subtitle: activeTab === 'scan' ? 'OCR entry' : 'Saved marks',
+      footer: activeTab === 'scan' ? (scanning ? 'Scanning now' : 'Ready to scan') : (pulling ? 'Loading records' : `${rows.length} records`),
+      icon: activeTab === 'scan' ? 'scan-outline' : 'download-outline',
+      background: '#D7E7CD',
+    },
+    {
+      title: activeTab === 'scan' ? 'Camera' : 'Filters',
+      subtitle: activeTab === 'scan' ? 'Image input' : 'Search fields',
+      footer: activeTab === 'scan' ? 'Gallery available too' : 'Class, section and test type',
+      icon: activeTab === 'scan' ? 'camera-outline' : 'funnel-outline',
+      background: '#F0EE96',
+    },
+  ];
 
 
   const canSave = useMemo(() => {
@@ -438,6 +454,35 @@ const HandwritingScanPull: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.container}>
+          <View style={local.summaryRow}>
+            {summaryCards.map((card, index) => (
+              <View
+                key={`${card.subtitle}-${index}`}
+                style={[
+                  local.summaryCard,
+                  index === 0 ? local.summaryCardLeft : local.summaryCardRight,
+                  { backgroundColor: card.background },
+                ]}
+              >
+                <View style={local.summaryText}>
+                  <View style={local.summaryTitleRow}>
+                    <Text style={local.summaryNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={local.summarySubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                  <Text style={local.summaryFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
+                </View>
+                <View style={local.summaryIconWrap}>
+                  <Ionicons name={card.icon as any} size={28} color="#4C4C4C" />
+                </View>
+              </View>
+            ))}
+          </View>
           <View style={[styles.syllabusContainer4]}>
             <View style={styles.tabsContainer}>
               <TouchableOpacity
@@ -687,6 +732,68 @@ const local = StyleSheet.create({
     borderLeftWidth: 1,
     borderColor: '#000',
     overflow: 'hidden',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 12,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  summaryCard: {
+    flex: 1,
+    height: 108,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  summaryCardLeft: {
+    marginRight: 4,
+  },
+  summaryCardRight: {
+    marginLeft: 4,
+  },
+  summaryText: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  summaryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
+  summaryNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginRight: 4,
+  },
+  summarySubtitle: {
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#252525',
+    lineHeight: 18,
+  },
+  summaryFooter: {
+    marginTop: 20,
+    fontSize: 12.5,
+    fontWeight: '500',
+    color: '#2B2B2B',
+  },
+  summaryIconWrap: {
+    width: 34,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingTop: 2,
   },
   formScroll: {
     paddingHorizontal: 14,

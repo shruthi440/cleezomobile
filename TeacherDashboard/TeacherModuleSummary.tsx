@@ -312,10 +312,16 @@ const TeacherModuleSummary = () => {
               >
                 <View style={localStyles.cardText}>
                   <View style={localStyles.statusTitleRow}>
-                    <Text style={localStyles.statusNumber}>{card.title}</Text>
-                    <Text style={localStyles.statusSubtitle}>{card.subtitle}</Text>
+                    <Text style={localStyles.statusNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={localStyles.statusSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
                   </View>
-                  <Text style={localStyles.statusFooter}>{card.footer}</Text>
+                  <Text style={localStyles.statusFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
                 </View>
                 <View style={localStyles.statusIconWrap}>
                   {renderIcon(card.kind, card.icon, '#4C4C4C', 30)}
@@ -440,13 +446,14 @@ const localStyles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    minHeight: 108,
+    height: 108,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,

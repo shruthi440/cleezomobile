@@ -77,6 +77,9 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
   const route = inlineParams
     ? ({ params: inlineParams } as TeachertimetableRouteProp)
     : useRoute<TeachertimetableRouteProp>();
+  const resolvedUsername = inlineParams?.username || route.params?.username || '';
+  const resolvedName = inlineParams?.name || route.params?.name || '';
+  const resolvedSchoolCode = inlineParams?.schoolCode || '';
   const [nextClass, setNextClass] = useState<any | null>(null);
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
@@ -98,6 +101,8 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
   const DAY_COLUMN_WIDTH = 70;
   const COLUMN_WIDTH = 110;
   const TOTAL_WIDTH = DAY_COLUMN_WIDTH + headerTimes.periods.length * COLUMN_WIDTH;
+  const TABLE_BORDER_COLOR = '#000';
+  const TABLE_BORDER_WIDTH = 1;
 
   const getTodayName = () => {
     return new Date().toLocaleDateString('en-US', { weekday: 'long' });
@@ -188,12 +193,12 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
   };
 
   const { username, name } = route.params || inlineParams || {};
-  console.log('📌 Teacher Username:', username);
-  console.log('📌 Teacher Name:', name);
+  console.log('📌 Teacher Username:', resolvedUsername || username);
+  console.log('📌 Teacher Name:', resolvedName || name);
 
   useEffect(() => {
     loadTeacherTimetable();
-  }, []);
+  }, [resolvedUsername, resolvedSchoolCode, route.params?.username, route.params?.name]);
   const { fullTimetable, refreshNextClass } = useNextClass();
   const [showModal, setShowModal] = useState(false);
   const loadTeacherTimetable = async () => {
@@ -202,15 +207,16 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
 
     try {
       console.log('📦 Fetching data from AsyncStorage...');
-      const schoolCode = await AsyncStorage.getItem('schoolCode');
-      const username = await AsyncStorage.getItem('username');
+      const storedSchoolCode = await AsyncStorage.getItem('schoolCode');
+      const storedUsername = await AsyncStorage.getItem('username');
+      const schoolCode = resolvedSchoolCode || storedSchoolCode || '';
+      const username = resolvedUsername || storedUsername || '';
 
       console.log('🏫 schoolCode:', schoolCode);
       console.log('👤 username:', username);
 
       if (!schoolCode || !username) {
-        console.warn('⚠️ Missing schoolCode or username, stopping API call');
-        setLoading(false);
+        console.warn('⚠️ Missing schoolCode or username, waiting for hydrated profile');
         return;
       }
 
@@ -284,7 +290,7 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
 
     setLoading(true);
     try {
-      const schoolCode = await AsyncStorage.getItem('schoolCode');
+      const schoolCode = resolvedSchoolCode || (await AsyncStorage.getItem('schoolCode'));
       if (!schoolCode) return;
       const response = await fetch(
         `http://162.215.210.38:3010/api/teacher-timetable?class_id=${classToLoad}&section_id=${sectionToLoad}&schoolCode=${schoolCode}`
@@ -330,6 +336,26 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
       return time.slice(0, 5);
     };
 
+    const tableWidth = DAY_COLUMN_WIDTH + Math.max(headerTimes.periods.length, 1) * COLUMN_WIDTH;
+    const renderCell = (content: React.ReactNode, width: number, isHeader = false) => (
+      <View
+        style={{
+          width,
+          minWidth: width,
+          maxWidth: width,
+          paddingVertical: 10,
+          paddingHorizontal: 8,
+          borderRightWidth: TABLE_BORDER_WIDTH,
+          borderRightColor: TABLE_BORDER_COLOR,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isHeader ? '#5A7488' : '#fff',
+        }}
+      >
+        {content}
+      </View>
+    );
+
     return (
       <View style={{ flex: 1 }}>
         <ScrollView
@@ -343,25 +369,47 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
             horizontal
             nestedScrollEnabled
             showsHorizontalScrollIndicator
+            contentContainerStyle={{ minWidth: tableWidth }}
             style={{
-              borderWidth: 1,
-              borderColor: '#000',
+              borderWidth: TABLE_BORDER_WIDTH,
+              borderColor: TABLE_BORDER_COLOR,
             }}
           >
-            <View>
-              <View style={[styles.teacherTableHeader, { flexDirection: 'row' }]}>
-                <Text style={styles.teacherHeaderCell}>Day</Text>
+            <View style={{ width: tableWidth }}>
+              <View style={{ flexDirection: 'row', borderBottomWidth: TABLE_BORDER_WIDTH, borderColor: TABLE_BORDER_COLOR }}>
+                {renderCell(
+                  <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                    Day
+                  </Text>,
+                  DAY_COLUMN_WIDTH,
+                  true
+                )}
 
                 {headerTimes.periods.map((p, i) => (
-                  <Text key={i} style={styles.teacherHeaderCellMed}>
-                    {p.name}
-                    {"\n"}
-                    <Text style={{ fontSize: 8, color: '#fff' }}>
+                  <View
+                    key={i}
+                    style={{
+                      width: COLUMN_WIDTH,
+                      minWidth: COLUMN_WIDTH,
+                      maxWidth: COLUMN_WIDTH,
+                      paddingVertical: 8,
+                      paddingHorizontal: 6,
+                      borderRightWidth: TABLE_BORDER_WIDTH,
+                      borderRightColor: TABLE_BORDER_COLOR,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: '#5A7488',
+                    }}
+                  >
+                    <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                      {p.name}
+                    </Text>
+                    <Text style={{ fontSize: 8, color: '#fff', textAlign: 'center', lineHeight: 10 }}>
                       {p.time
                         ? `${formatTime(p.time.split(' - ')[0])} - ${formatTime(p.time.split(' - ')[1])}`
                         : ''}
                     </Text>
-                  </Text>
+                  </View>
                 ))}
               </View>
 
@@ -370,13 +418,28 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
                   key={dayData.day}
                   style={{
                     flexDirection: 'row',
-                    borderBottomWidth: index === uniqueData.length - 1 ? 0 : 1,
-                    borderColor: '#000',
+                    borderBottomWidth: index === uniqueData.length - 1 ? 0 : TABLE_BORDER_WIDTH,
+                    borderColor: TABLE_BORDER_COLOR,
                   }}
                 >
-                  <Text style={styles.teacherDataCellDay}>
-                    {dayData.day}
-                  </Text>
+                  <View
+                    style={{
+                      width: DAY_COLUMN_WIDTH,
+                      minWidth: DAY_COLUMN_WIDTH,
+                      maxWidth: DAY_COLUMN_WIDTH,
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRightWidth: TABLE_BORDER_WIDTH,
+                      borderRightColor: TABLE_BORDER_COLOR,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      backgroundColor: '#fff',
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#5A7488', textAlign: 'center' }}>
+                      {dayData.day}
+                    </Text>
+                  </View>
 
                   {headerTimes.periods.map((header, idx) => {
                     const [startTime, endTime] = header.time
@@ -408,15 +471,29 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
                         : null;
 
                     return (
-                      <Text key={idx} style={styles.teacherDataCell}>
-                        {intervalText
-                          ? intervalText
-                          : matchedPeriod
-                          ? matchedPeriod.subject
-                          : isEmpty
-                          ? '--'
-                          : '--'}
-                      </Text>
+                      <View
+                        key={idx}
+                        style={{
+                          width: COLUMN_WIDTH,
+                          minWidth: COLUMN_WIDTH,
+                          maxWidth: COLUMN_WIDTH,
+                          paddingVertical: 10,
+                          paddingHorizontal: 8,
+                          borderRightWidth: TABLE_BORDER_WIDTH,
+                          borderRightColor: TABLE_BORDER_COLOR,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          backgroundColor: '#fff',
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, color: '#000', textAlign: 'center', lineHeight: 14 }}>
+                          {intervalText
+                            ? intervalText
+                            : matchedPeriod
+                            ? matchedPeriod.subject
+                            : '--'}
+                        </Text>
+                      </View>
                     );
                   })}
                 </View>
@@ -430,6 +507,10 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
 
   const renderTeacherTimetable = (data: any[]) => {
     const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const DAY_COLUMN_WIDTH = 80;
+    const CLASS_COLUMN_WIDTH = 60;
+    const TIME_COLUMN_WIDTH = 70;
+    const PERIOD_GROUP_WIDTH = CLASS_COLUMN_WIDTH + TIME_COLUMN_WIDTH + TIME_COLUMN_WIDTH;
 
     const groupedByDay: any = data.reduce((acc, item) => {
       if (!acc[item.day]) {
@@ -459,17 +540,66 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
     });
 
     const maxPeriodsCount = Math.max(...sortedData.map(d => d.periods.length), 1);
+    const tableWidth = DAY_COLUMN_WIDTH + Math.max(maxPeriodsCount, 1) * PERIOD_GROUP_WIDTH;
+
+    const renderCell = (content: React.ReactNode, width: number, isHeader = false) => (
+      <View
+        style={{
+          width,
+          minWidth: width,
+          maxWidth: width,
+          paddingVertical: 10,
+          paddingHorizontal: 8,
+          borderRightWidth: TABLE_BORDER_WIDTH,
+          borderRightColor: TABLE_BORDER_COLOR,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: isHeader ? '#5A7488' : '#fff',
+        }}
+      >
+        {content}
+      </View>
+    );
 
     return (
-      <ScrollView horizontal style={{ borderWidth: 1, borderColor: '#000' }}>
-        <View>
-          <View style={[styles.teacherTableHeader, { flexDirection: 'row' }]}>
-            <Text style={styles.teacherHeaderCell}>Day</Text>
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        style={{ borderWidth: TABLE_BORDER_WIDTH, borderColor: TABLE_BORDER_COLOR }}
+        contentContainerStyle={{ minWidth: tableWidth }}
+      >
+        <View style={{ width: tableWidth }}>
+          <View style={{ flexDirection: 'row', borderBottomWidth: TABLE_BORDER_WIDTH, borderColor: TABLE_BORDER_COLOR }}>
+            {renderCell(
+              <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                Day
+              </Text>,
+              DAY_COLUMN_WIDTH,
+              true
+            )}
             {[...Array(maxPeriodsCount)].map((_, i) => (
               <React.Fragment key={i}>
-                <Text style={styles.teacherHeaderCellSmall}>Class</Text>
-                <Text style={styles.teacherHeaderCellMed}>From</Text>
-                <Text style={styles.teacherHeaderCellMed}>To</Text>
+                {renderCell(
+                  <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                    Class
+                  </Text>,
+                  CLASS_COLUMN_WIDTH,
+                  true
+                )}
+                {renderCell(
+                  <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                    From
+                  </Text>,
+                  TIME_COLUMN_WIDTH,
+                  true
+                )}
+                {renderCell(
+                  <Text style={{ color: '#F2F2F2', fontWeight: 'bold', fontSize: 10, textAlign: 'center' }}>
+                    To
+                  </Text>,
+                  TIME_COLUMN_WIDTH,
+                  true
+                )}
               </React.Fragment>
             ))}
           </View>
@@ -477,23 +607,43 @@ const Teachertimetable: React.FC<TeachertimetableProps> = ({ navigation, inlineP
           {sortedData.map(({ day, periods }) => (
             <View
               key={day}
-              style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#000' }}
+              style={{ flexDirection: 'row', borderBottomWidth: TABLE_BORDER_WIDTH, borderColor: TABLE_BORDER_COLOR }}
             >
-              <Text style={styles.teacherDataCellDay}>{day}</Text>
+              {renderCell(
+                <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#5A7488', textAlign: 'center' }}>
+                  {day}
+                </Text>,
+                DAY_COLUMN_WIDTH
+              )}
 
               {periods.map((p: any, i: number) => (
                 <React.Fragment key={i}>
-                  <Text style={styles.teacherDataCell}>{p.class_id || '--'}</Text>
-                  <Text style={styles.teacherDataCell}>{p.fromTime?.slice(0, 5) || '--'}</Text>
-                  <Text style={styles.teacherDataCell}>{p.toTime?.slice(0, 5) || '--'}</Text>
+                  {renderCell(
+                    <Text style={{ fontSize: 10, color: '#000', textAlign: 'center' }}>
+                      {p.class_id || '--'}
+                    </Text>,
+                    CLASS_COLUMN_WIDTH
+                  )}
+                  {renderCell(
+                    <Text style={{ fontSize: 10, color: '#000', textAlign: 'center' }}>
+                      {p.fromTime?.slice(0, 5) || '--'}
+                    </Text>,
+                    TIME_COLUMN_WIDTH
+                  )}
+                  {renderCell(
+                    <Text style={{ fontSize: 10, color: '#000', textAlign: 'center' }}>
+                      {p.toTime?.slice(0, 5) || '--'}
+                    </Text>,
+                    TIME_COLUMN_WIDTH
+                  )}
                 </React.Fragment>
               ))}
 
               {[...Array(maxPeriodsCount - periods.length)].map((_, idx) => (
                 <React.Fragment key={`empty-${idx}`}>
-                  <Text style={styles.teacherDataCell} />
-                  <Text style={styles.teacherDataCell} />
-                  <Text style={styles.teacherDataCell} />
+                  {renderCell(null, CLASS_COLUMN_WIDTH)}
+                  {renderCell(null, TIME_COLUMN_WIDTH)}
+                  {renderCell(null, TIME_COLUMN_WIDTH)}
                 </React.Fragment>
               ))}
             </View>

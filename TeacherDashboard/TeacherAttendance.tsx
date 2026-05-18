@@ -430,7 +430,7 @@ const availableSections = selectedClass
               key={`${card.title}-${index}`}
               style={{
                 flex: 1,
-                minHeight: 108,
+                height: 108,
                 borderRadius: 14,
                 paddingVertical: 14,
                 paddingHorizontal: 16,
@@ -440,6 +440,7 @@ const availableSections = selectedClass
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
+                overflow: 'hidden',
                 shadowColor: '#000',
                 shadowOpacity: 0.06,
                 shadowRadius: 8,
@@ -449,14 +450,26 @@ const availableSections = selectedClass
             >
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <Text style={{ fontSize: 18, fontWeight: '900', color: '#111111', marginRight: 4 }}>
+                  <Text
+                    style={{ fontSize: 18, fontWeight: '900', color: '#111111', marginRight: 4 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {card.title}
                   </Text>
-                  <Text style={{ fontSize: 12.5, fontWeight: '500', color: '#252525', lineHeight: 18 }}>
+                  <Text
+                    style={{ fontSize: 12.5, fontWeight: '500', color: '#252525', lineHeight: 18 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
                     {card.subtitle}
                   </Text>
                 </View>
-                <Text style={{ marginTop: 20, fontSize: 12.5, fontWeight: '500', color: '#2B2B2B' }}>
+                <Text
+                  style={{ marginTop: 20, fontSize: 12.5, fontWeight: '500', color: '#2B2B2B' }}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
                   {card.footer}
                 </Text>
               </View>

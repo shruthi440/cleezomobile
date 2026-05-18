@@ -557,7 +557,6 @@ const ParentFees: React.FC<FeesViewProps> = ({ navigation, embedded = false }) =
               <Text style={styles.th}>Total</Text>
               <Text style={styles.th}>Paid</Text>
               <Text style={styles.th}>Due</Text>
-              <Text style={styles.th}>Date</Text>
             </View>
 
             <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false} contentContainerStyle={styles.tableBody}>
@@ -571,7 +570,6 @@ const ParentFees: React.FC<FeesViewProps> = ({ navigation, embedded = false }) =
                     <Text style={styles.td}>{formatINR(row.amount)}</Text>
                     <Text style={styles.td}>{formatINR(row.paid)}</Text>
                     <Text style={styles.td}>{formatINR(row.due)}</Text>
-                    <Text style={styles.td}>{row.paymentDate || '-'}</Text>
                   </View>
                 ))
               ) : (

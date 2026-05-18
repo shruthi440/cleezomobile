@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   ImageSourcePropType,
   Modal,
@@ -7,6 +8,7 @@ import {
   ScrollView,
   StatusBar,
   Text,
+  ActivityIndicator,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -259,14 +261,17 @@ const TeacherDashboard = () => {
   const moduleHistoryRef = useRef<string[]>(['Attendance']);
   const [snapOffsets, setSnapOffsets] = useState<number[]>([0]);
   const [showTeacherDetails, setShowTeacherDetails] = useState(false);
+  const [showAccountSwitchOptions, setShowAccountSwitchOptions] = useState(false);
   const [showNextClassReport, setShowNextClassReport] = useState(false);
   const [showFooterNav, setShowFooterNav] = useState(false);
   const [schoolLogo, setSchoolLogo] = useState('');
+  const [parentProfileCache, setParentProfileCache] = useState<Record<string, any> | null>(null);
   const [attendanceSnapshot, setAttendanceSnapshot] = useState<AttendanceSnapshot>({
     status: 'Not tracked yet',
     distance: '--',
     lastUpdated: '--',
   });
+  const [profileReady, setProfileReady] = useState(false);
   const { nextClass, fullTimetable, refreshNextClass } = useNextClass();
   const [teacherProfile, setTeacherProfile] = useState<TeacherProfile>({
     username: '',
@@ -279,8 +284,12 @@ const TeacherDashboard = () => {
     teacherId: '',
     email: '',
   });
+  const normalizeText = (value: any) =>
+    String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const normalizePhone = (value: any) => String(value ?? '').replace(/\D/g, '');
 
   useEffect(() => {
+    setProfileReady(false);
     const loadTeacherProfile = async () => {
       try {
         const storedUserDetailsRaw = await AsyncStorage.getItem('userDetails');
@@ -328,13 +337,74 @@ const TeacherDashboard = () => {
           teacherId: String(storedUserDetails.teacher_id || storedUserDetails.id || ''),
           email: String(storedUserDetails.email_id || storedUserDetails.email || ''),
         });
+
+        const cachedTeacherProfile = {
+          username:
+            params.username ||
+            storedUserDetails.username ||
+            storedUserDetails.user_name ||
+            storedUsername ||
+            '',
+          name:
+            params.name ||
+            storedUserDetails.name ||
+            storedUserDetails.teacher_name ||
+            storedName ||
+            '',
+          designation:
+            storedUserDetails.designation ||
+            storedDesignation ||
+            storedUserDetails.role ||
+            '',
+          schoolCode: String(storedUserDetails.schoolCode || storedSchoolCode || ''),
+          userType: String(storedUserDetails.userType || storedUserType || ''),
+          phoneNo: String(
+            storedUserDetails.phone_no ||
+              storedUserDetails.phoneNo ||
+              storedUserDetails.mobile_number ||
+              storedUserDetails.contact_no ||
+              ''
+          ),
+          subject: String(
+            storedUserDetails.subject ||
+              storedUserDetails.class_name ||
+              storedUserDetails.department ||
+              ''
+          ),
+          teacherId: String(storedUserDetails.teacher_id || storedUserDetails.id || ''),
+          email: String(storedUserDetails.email_id || storedUserDetails.email || ''),
+        };
+
+        await AsyncStorage.setItem('teacherProfile', JSON.stringify(cachedTeacherProfile));
       } catch (error) {
         console.error('Failed to load teacher profile:', error);
+      } finally {
+        setProfileReady(true);
       }
     };
 
     loadTeacherProfile();
   }, [route.params]);
+
+  useEffect(() => {
+    const loadParentProfileCache = async () => {
+      try {
+        const cachedParentProfileRaw = await AsyncStorage.getItem('parentProfile');
+        if (!cachedParentProfileRaw) {
+          setParentProfileCache(null);
+          return;
+        }
+
+        const cachedParentProfile = JSON.parse(cachedParentProfileRaw);
+        setParentProfileCache(cachedParentProfile);
+      } catch (error) {
+        console.error('Failed to load cached parent profile:', error);
+        setParentProfileCache(null);
+      }
+    };
+
+    void loadParentProfileCache();
+  }, [showTeacherDetails]);
 
   useEffect(() => {
     const loadSchoolLogo = async () => {
@@ -646,8 +716,71 @@ const TeacherDashboard = () => {
   };
 
   const handleOpenProfilePanel = () => {
+    setShowAccountSwitchOptions(false);
     setShowTeacherDetails(true);
   };
+
+  const toggleAccountSwitchOptions = () => {
+    setShowAccountSwitchOptions((current) => !current);
+  };
+
+  const canSwitchToParentAccount =
+    Boolean(parentProfileCache) &&
+    normalizeText(teacherProfile.name) === normalizeText(parentProfileCache?.father_name) &&
+    normalizePhone(teacherProfile.phoneNo) ===
+      normalizePhone(
+        parentProfileCache?.phone_no ||
+          parentProfileCache?.phoneNo ||
+          parentProfileCache?.mobile_number ||
+          parentProfileCache?.phone ||
+          ''
+      );
+
+  const handleSwitchToParentAccount = async () => {
+    try {
+      if (!parentProfileCache) {
+        Alert.alert('Unavailable', 'Parent account details were not found on this device.');
+        return;
+      }
+
+      const username = String(parentProfileCache.username || '');
+      const name = String(parentProfileCache.name || '');
+      const schoolCode = String(parentProfileCache.schoolCode || '');
+
+      await AsyncStorage.multiSet([
+        ['username', username],
+        ['name', name],
+        ['schoolCode', schoolCode],
+        ['userType', 'student'],
+        ['userDetails', JSON.stringify(parentProfileCache)],
+        ['currentStudent', JSON.stringify(parentProfileCache)],
+        ['lastScreen', 'ParentDashboard'],
+      ]);
+
+      setShowTeacherDetails(false);
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'ParentDashboard' as never,
+            params: { username, name },
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('Failed to switch to parent account:', error);
+      Alert.alert('Error', 'Failed to switch to parent account.');
+    }
+  };
+
+  if (!profileReady) {
+    return (
+      <View style={styles.screen}>
+        <StatusBar barStyle="light-content" backgroundColor="#0E0E0F" />
+       
+      </View>
+    );
+  }
 
   const inlineParams = {
     username: teacherProfile.username || route.params?.username || '',
@@ -868,10 +1001,16 @@ const TeacherDashboard = () => {
                 >
                   <View style={styles.statusCardText}>
                     <View style={styles.statusTitleRow}>
-                      <Text style={styles.statusNumber}>{statusCards[0].title}</Text>
-                      <Text style={styles.statusSubtitle}>{statusCards[0].subtitle}</Text>
+                      <Text style={styles.statusNumber} numberOfLines={1} ellipsizeMode="tail">
+                        {statusCards[0].title}
+                      </Text>
+                      <Text style={styles.statusSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                        {statusCards[0].subtitle}
+                      </Text>
                     </View>
-                    <Text style={styles.statusFooter}>{statusCards[0].footer}</Text>
+                    <Text style={styles.statusFooter} numberOfLines={2} ellipsizeMode="tail">
+                      {statusCards[0].footer}
+                    </Text>
                     <Pressable
                       onPress={() => setShowNextClassReport(true)}
                       style={styles.statusActionButton}
@@ -894,10 +1033,16 @@ const TeacherDashboard = () => {
                 >
                   <View style={styles.statusCardText}>
                     <View style={styles.statusTitleRow}>
-                      <Text style={styles.statusNumber}>{statusCards[1].title}</Text>
-                      <Text style={styles.statusSubtitle}>{statusCards[1].subtitle}</Text>
+                      <Text style={styles.statusNumber} numberOfLines={1} ellipsizeMode="tail">
+                        {statusCards[1].title}
+                      </Text>
+                      <Text style={styles.statusSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                        {statusCards[1].subtitle}
+                      </Text>
                     </View>
-                    <Text style={styles.statusFooter}>{statusCards[1].footer}</Text>
+                    <Text style={styles.statusFooter} numberOfLines={2} ellipsizeMode="tail">
+                      {statusCards[1].footer}
+                    </Text>
                   </View>
 
                   <View style={styles.statusIconWrap}>
@@ -993,20 +1138,107 @@ const TeacherDashboard = () => {
                   </View>
 
                   <View style={styles.teacherActions}>
-                    <Pressable
-                      style={[styles.popupButton, styles.popupButtonSecondary, styles.teacherActionButton]}
-                      onPress={() => setShowTeacherDetails(false)}
-                    >
-                      <Text style={[styles.popupButtonText, styles.popupButtonTextSecondary]}>
-                        Close
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.popupButton, styles.popupButtonPrimary, styles.teacherActionButton]}
-                      onPress={switchToCampaigning}
-                    >
-                      <Text style={styles.popupButtonText}>Switch to Campaigning</Text>
-                    </Pressable>
+                    {showAccountSwitchOptions ? (
+                      <View style={{ gap: 10, marginTop: 8, width: '100%' }}>
+                        <Pressable
+                          style={[
+                            {
+                              width: '100%',
+                              minHeight: 44,
+                              borderRadius: 12,
+                              backgroundColor: '#F1F3F6',
+                              borderWidth: 1,
+                              borderColor: '#D9DDE5',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            },
+                          ]}
+                          onPress={() => setShowAccountSwitchOptions(false)}
+                        >
+                          <Text
+                            style={{
+                              color: '#2B2B2B',
+                              fontSize: 13.5,
+                              fontWeight: '800',
+                              textAlign: 'center',
+                            }}
+                          >
+                            Close
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          style={[
+                            {
+                              width: '100%',
+                              minHeight: 48,
+                              borderRadius: 12,
+                              backgroundColor: '#FFFFFF',
+                              borderWidth: 1,
+                              borderColor: '#D9DDE5',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            },
+                          ]}
+                          onPress={switchToCampaigning}
+                        >
+                          <Text
+                            style={{
+                              color: '#1F1F22',
+                              fontSize: 14,
+                              fontWeight: '800',
+                              textAlign: 'center',
+                            }}
+                          >
+                            Campaign 
+                          </Text>
+                        </Pressable>
+                        {canSwitchToParentAccount && (
+                          <Pressable
+                            style={[
+                              {
+                                width: '100%',
+                                minHeight: 48,
+                                borderRadius: 12,
+                                backgroundColor: '#FFFFFF',
+                                borderWidth: 1,
+                                borderColor: '#D9DDE5',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              },
+                            ]}
+                            onPress={handleSwitchToParentAccount}
+                          >
+                            <Text
+                              style={{
+                                color: '#1F1F22',
+                                fontSize: 14,
+                                fontWeight: '800',
+                                textAlign: 'center',
+                              }}
+                            >
+                              Parent
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
+                    ) : (
+                      <>
+                        <Pressable
+                          style={[styles.popupButton, styles.popupButtonSecondary, styles.teacherActionButton]}
+                          onPress={() => setShowTeacherDetails(false)}
+                        >
+                          <Text style={[styles.popupButtonText, styles.popupButtonTextSecondary]}>
+                            Close
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.popupButton, styles.popupButtonPrimary, styles.teacherActionButton]}
+                          onPress={toggleAccountSwitchOptions}
+                        >
+                          <Text style={styles.popupButtonText}>Switch Account</Text>
+                        </Pressable>
+                      </>
+                    )}
                   </View>
 
                   <Pressable

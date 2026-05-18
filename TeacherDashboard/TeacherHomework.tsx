@@ -483,10 +483,16 @@ const TeacherHomework: React.FC<
               >
                 <View style={local.summaryText}>
                   <View style={local.summaryTitleRow}>
-                    <Text style={local.summaryNumber}>{card.title}</Text>
-                    <Text style={local.summarySubtitle}>{card.subtitle}</Text>
+                    <Text style={local.summaryNumber} numberOfLines={1} ellipsizeMode="tail">
+                      {card.title}
+                    </Text>
+                    <Text style={local.summarySubtitle} numberOfLines={1} ellipsizeMode="tail">
+                      {card.subtitle}
+                    </Text>
                   </View>
-                  <Text style={local.summaryFooter}>{card.footer}</Text>
+                  <Text style={local.summaryFooter} numberOfLines={2} ellipsizeMode="tail">
+                    {card.footer}
+                  </Text>
                 </View>
                 <View style={local.summaryIconWrap}>
                   <Ionicons name={card.icon} size={28} color="#4C4C4C" />
@@ -669,13 +675,14 @@ const local = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    minHeight: 108,
+    height: 108,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,
